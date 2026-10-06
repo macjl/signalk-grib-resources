@@ -2,7 +2,7 @@
 
 An evaluation of the GRIB Resources proposal from the perspective of weather-producing and weather-consuming Signal K plugins, one attributed section per plugin.
 
-**Status: working notes.** This document is not part of the proposal itself; it is consumer- and producer-side feedback intended to inform the community discussion. The original four evaluations by Henri Bergius (Bergie) were reviewed against proposal commit `f4bd072` (2026-10-06) and contributed in [PR #1](https://github.com/macjl/signalk-grib-resources/pull/1). The three additional source-based evaluations were prepared against proposal commit `8c922f7` (2026-10-06) and reviewed and approved by their maintainer, Jean-Laurent Girod.
+**Status: working notes.** This document is not part of the proposal itself; it is consumer- and producer-side feedback intended to inform the community discussion. The original four evaluations by Henri Bergius, were reviewed against proposal commit `f4bd072` (2026-10-06) and contributed in [PR #1](https://github.com/macjl/signalk-grib-resources/pull/1). The three additional source-based evaluations were prepared against proposal commit `8c922f7` (2026-10-06) and reviewed and approved by their maintainer, Jean-Laurent Girod.
 
 Plugin authorship and evaluation authorship are recorded separately. Author fields were checked against the linked repositories' package metadata; the plugin revisions assessed in the original contribution were not recorded. The new evaluations cite specific source revisions and are based on code and documentation inspection, not runtime testing. Existing evaluations retain their original analysis; adding attribution does not independently verify their implementation claims or trial results.
 
@@ -69,7 +69,7 @@ GRIB datasets become a custom `gribs` resource type in the existing Resources AP
 
 **Plugin author / maintainer:** Henri Bergius (@bergie), as declared in [package metadata](https://github.com/meri-imperiumi/signalk-dead-reckoning/blob/main/package.json).
 **Repository:** [meri-imperiumi/signalk-dead-reckoning](https://github.com/meri-imperiumi/signalk-dead-reckoning).
-**Evaluation by:** Henri Bergius (@bergie), original contribution.
+**Evaluation by:** Henri Bergius (@bergie), original contribution; LLM-assisted evaluation with GLM-5.3-flash.
 **Plugin version / commit reviewed:** not recorded in the original evaluation.
 
 **Role:** offline-first dead reckoning and sensor fusion engine that maintains a continuously computed "shadow boat" position from water-track sensors, learning vessel-specific leeway and current corrections against GPS ground truth.
@@ -109,7 +109,7 @@ Feedback to the discussion:
 
 **Plugin author / maintainer:** Henri Bergius (@bergie), as declared in [package metadata](https://github.com/meri-imperiumi/signalk-energy-predictor/blob/main/package.json).
 **Repository:** [meri-imperiumi/signalk-energy-predictor](https://github.com/meri-imperiumi/signalk-energy-predictor).
-**Evaluation by:** Henri Bergius (@bergie), original contribution.
+**Evaluation by:** Henri Bergius (@bergie), original contribution; LLM-assisted evaluation with GLM-5.3-flash.
 **Plugin version / commit reviewed:** not recorded in the original evaluation.
 
 **Role:** predicts the vessel's energy generation (solar, wind generator, hydrogenerator) and battery trajectory for the next 24–48 h by combining weather forecasts with models learned from the vessel's actual generation history, and publishes actionable advisories (stow a deployable, run the genset or engine, surplus/deficit outlook).
@@ -150,7 +150,7 @@ Feedback to the discussion:
 
 **Plugin author / maintainer:** Henri Bergius (@bergie), as declared in [package metadata](https://github.com/meri-imperiumi/signalk-passage-briefing/blob/main/package.json).
 **Repository:** [meri-imperiumi/signalk-passage-briefing](https://github.com/meri-imperiumi/signalk-passage-briefing).
-**Evaluation by:** Henri Bergius (@bergie), original contribution.
+**Evaluation by:** Henri Bergius (@bergie), original contribution; LLM-assisted evaluation with GLM-5.3-flash.
 **Plugin version / commit reviewed:** not recorded in the original evaluation.
 
 **Role:** offshore passage daily briefing webapp — simulates the passage hour by hour from the boat's actual position (polar boat speed plus current) along whatever route is currently active, regardless of its source (signalk-weather-router-plus, an Orca or LuckGrib plan, a hand-drawn track), recommends sail changes learned from the electronic logbook, rates every hour on the Sereno comfort scale, and assembles bulletins, official alerts, hazards and sky events into one unified timeline the crew walks through each day underway.
@@ -196,7 +196,7 @@ Feedback to the discussion:
 
 **Plugin author / maintainer:** Henri Bergius (@bergie), as declared in [package metadata](https://github.com/meri-imperiumi/offshore-blogging-system/blob/main/package.json).
 **Repository:** [meri-imperiumi/offshore-blogging-system](https://github.com/meri-imperiumi/offshore-blogging-system) (package `@meri-imperiumi/signalk-offshore-blogging`).
-**Evaluation by:** Henri Bergius (@bergie), original contribution.
+**Evaluation by:** Henri Bergius (@bergie), original contribution; LLM-assisted evaluation with GLM-5.3-flash.
 **Plugin version / commit reviewed:** not recorded in the original evaluation.
 
 **Role:** low-bandwidth lifeline plugin plus companion cloud server: encodes blog posts for InReach/Winlink transmission, turns crew weather requests into Saildocs queries, and receives the resulting GRIB files back over the same channels, persisting them on the boat's Signal K server for shared use.
