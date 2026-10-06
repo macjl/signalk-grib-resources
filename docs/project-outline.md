@@ -99,7 +99,7 @@ A GRIB-backed Weather Provider becomes a bridge between the two layers.
 
 ### 4.1 GRIB consumer
 
-**As a routing, visualisation, weather, or analysis plugin, I want to discover available GRIB datasets matching my needs so that I can choose the most appropriate dataset without knowing which plugin downloaded or produced it.**
+**As a routing, visualisation, weather, or analysis plugin or application, I want to discover available GRIB datasets matching my needs so that I can choose the most appropriate dataset without knowing which plugin downloaded or produced it.**
 
 Possible selection criteria include:
 
@@ -214,6 +214,27 @@ Routing / Weather Provider / Visualisation
 
 A server can therefore act as both a GRIB consumer and a GRIB producer.
 
+### 4.8 External navigation application
+
+**As a mobile or desktop navigation application already consuming vessel data from a Signal K server, I want to discover and retrieve forecast datasets from that server so that I can display weather forecasts alongside vessel observations and navigation information.**
+
+The application may already use Signal K for position, measured wind, depth, or other vessel sensor data. The same server could also provide a catalogue of available GRIB datasets and access to their binary content.
+
+A typical workflow would be to:
+
+- connect to the vessel's Signal K server and receive vessel observations through the existing data APIs;
+- discover forecast datasets through the Resources API;
+- inspect model runs, available parameters, geographic and temporal coverage, and resolution;
+- retrieve suitable GRIB content, optionally requesting a subset where supported;
+- decode and display forecast fields alongside navigation information;
+- optionally cache downloaded datasets for offline use, retaining their model run and forecast validity information.
+
+The application does not need to be installed as a Signal K plugin or integrate separately with each downloader. Producers on the server can obtain and publish datasets that multiple independent applications retrieve and use. Each application remains responsible for GRIB decoding, dataset suitability, display, and any local interpolation.
+
+This use case positions Signal K as a common access point for both vessel observations and forecast datasets in the mariner's digital hub. It does not require the two kinds of data to share the same API: observations and GRIB resource discovery retain their respective interfaces.
+
+The resource contract should therefore be usable by external HTTP clients, without requiring access to the server filesystem or an internal plugin interface. Points to define include client authentication for both metadata and binary retrieval, resolution of content URLs from the client's server address, dataset identity and cache validation, and browser access from another origin where applicable. The exact mechanisms remain open for design.
+
 ---
 
 ## 5. Proposed Architecture
@@ -283,9 +304,9 @@ The downloader obtains GRIBs from upstream weather services and registers them a
 
 The lifecycle plugin applies retention, archival, and deletion rules independently of the downloader.
 
-### Consumer plugins
+### Consumer plugins and applications
 
-Routing, visualisation, weather providers, and analysis tools discover resources using the standard Resources API and choose the datasets they need.
+Routing, visualisation, weather providers, and analysis tools discover resources using the standard Resources API and choose the datasets they need. Consumers can be server plugins or external mobile, desktop, and web applications using the same HTTP resource contract.
 
 ---
 
@@ -430,6 +451,10 @@ A routing plugin can consume GRIB datasets directly, which is more efficient tha
 
 Visualisation tools can discover model runs and allow the user to choose the model, run, resolution, or field they want to display.
 
+### External navigation applications
+
+Mobile and desktop applications already using Signal K vessel observations can also retrieve GRIB resources to display forecast fields. Discovery and content retrieval should work through HTTP without requiring a server-side consumer plugin.
+
 ### Other Signal K servers
 
 A remote Signal K server can be treated as another GRIB source, enabling low-bandwidth replication and federation.
@@ -492,6 +517,7 @@ Examples:
 - weather routing;
 - GRIB-backed Weather Provider;
 - Freeboard or other visualisation applications;
+- external mobile, desktop, or web navigation applications;
 - forecast-verification tools;
 - remote Signal K replication.
 
@@ -588,6 +614,8 @@ Define the GRIB resource metadata schema and implement a GRIB Resource Provider 
 
 No subsetting is required for the first prototype.
 
+Discovery and binary retrieval should also be demonstrated from an external HTTP client, without relying on a consumer plugin or direct filesystem access.
+
 ### Phase 2 — Existing downloader integration
 
 Adapt a GRIB downloader to publish datasets through the new resource model instead of relying only on a private filesystem convention.
@@ -632,6 +660,8 @@ The following points still require design work and community discussion:
 8. Should lifecycle metadata be part of the resource or remain provider-specific?
 9. How should large subset-generation jobs be handled if they are too expensive for a synchronous HTTP request?
 10. Should a future Signal K Resources extension define a generic binary-content relationship, based on lessons learned from GRIB and charts?
+11. What authentication, content-URL resolution, and browser-origin access rules are needed for external mobile, desktop, and web clients?
+12. How should clients identify changed content, validate cached datasets, and retain forecast validity information for offline use?
 
 ---
 
@@ -644,6 +674,8 @@ The current design milestone can be summarised as follows:
 > The Resources API provides dataset discovery and metadata, while the GRIB Resource Provider exposes the binary dataset through its own HTTP endpoint.
 >
 > Downloading, lifecycle management, transformation, routing, visualisation, and weather-value access remain separate plugins or consumers.
+>
+> Consumers include external navigation applications as well as server plugins, allowing Signal K to provide a common access point for vessel observations and forecast datasets.
 >
 > Spatial and temporal subsetting belongs in the GRIB Resource Provider, not in the Signal K server core.
 >
