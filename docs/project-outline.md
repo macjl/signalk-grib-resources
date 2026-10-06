@@ -10,6 +10,8 @@ This document captures the current design milestone for introducing a standard w
 
 The goal at this stage is not to define a final protocol or implementation in full detail. It is to establish the use cases, architecture, boundaries, and implementation direction strongly enough to support discussion with the Signal K community and guide the first implementation.
 
+Related community feedback is available in [Bergie's consumer and producer evaluation](consumer-fleet-evaluation.md), which examines the needs of four weather-handling plugins. It is a separate set of working notes intended to inform the discussion; its recommendations are not adopted requirements of this proposal.
+
 ---
 
 ## 1. Problem Statement

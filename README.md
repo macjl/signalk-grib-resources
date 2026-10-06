@@ -34,6 +34,12 @@ Useful starting points:
 - [Suggested implementation phases](docs/project-outline.md#15-suggested-implementation-phases)
 - [Open questions](docs/project-outline.md#16-open-questions)
 
+## Community feedback
+
+[Bergie's consumer and producer evaluation](docs/consumer-fleet-evaluation.md) examines the proposal from the perspective of four weather-handling plugins. It covers Weather API consumers, catalogue-based dataset selection, and GRIB acquisition over satellite or email, with feedback on provenance, parameter availability, subsetting, and limited-bandwidth operation.
+
+The evaluation is a separate set of working notes intended to inform the discussion. Its recommendations are not adopted requirements of the proposal. Other plugin authors can contribute evaluations using the template in that document.
+
 ## Initial scope
 
 A first prototype would provide local dataset discovery, metadata, and original GRIB-file retrieval. Subsetting is not required for that prototype.
