@@ -36,9 +36,9 @@ Useful starting points:
 
 ## Community feedback
 
-[Bergie's consumer and producer evaluation](docs/consumer-fleet-evaluation.md) examines the proposal from the perspective of four weather-handling plugins. It covers Weather API consumers, catalogue-based dataset selection, and GRIB acquisition over satellite or email, with feedback on provenance, parameter availability, subsetting, and limited-bandwidth operation.
+[The shared plugin evaluation document](docs/consumer-fleet-evaluation.md), started by Bergie, examines the proposal from the perspective of weather producers, Weather API bridges, and consumers. Each section identifies the plugin author, repository, evaluator, and reviewed revision where recorded. It includes Bergie's original four evaluations and source-based evaluations for GRIB Downloader, GRIB Weather Provider, and Weather Map reviewed and approved by their maintainer.
 
-The evaluation is a separate set of working notes intended to inform the discussion. Its recommendations are not adopted requirements of the proposal. Other plugin authors can contribute evaluations using the template in that document.
+The evaluations are a separate set of working notes intended to inform the discussion. Their recommendations are not adopted requirements of the proposal. Other plugin authors can contribute evaluations using the attributed template in that document.
 
 ## Initial scope
 

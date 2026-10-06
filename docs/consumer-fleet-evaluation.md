@@ -1,8 +1,10 @@
-# GRIB Resources — consumer fleet evaluation
+# GRIB Resources — plugin fleet evaluation
 
-An evaluation of the GRIB Resources proposal from the perspective of a fleet of weather-consuming Signal K plugins, one section per plugin.
+An evaluation of the GRIB Resources proposal from the perspective of weather-producing and weather-consuming Signal K plugins, one attributed section per plugin.
 
-**Status: working notes.** Reviewed against proposal commit `f4bd072` (2026-10-06). This document is not part of the proposal itself; it is consumer-side feedback intended to inform the community discussion.
+**Status: working notes.** This document is not part of the proposal itself; it is consumer- and producer-side feedback intended to inform the community discussion. The original four evaluations by Henri Bergius (Bergie) were reviewed against proposal commit `f4bd072` (2026-10-06) and contributed in [PR #1](https://github.com/macjl/signalk-grib-resources/pull/1). The three additional source-based evaluations were prepared against proposal commit `8c922f7` (2026-10-06) and reviewed and approved by their maintainer, Jean-Laurent Girod.
+
+Plugin authorship and evaluation authorship are recorded separately. Author fields were checked against the linked repositories' package metadata; the plugin revisions assessed in the original contribution were not recorded. The new evaluations cite specific source revisions and are based on code and documentation inspection, not runtime testing. Existing evaluations retain their original analysis; adding attribution does not independently verify their implementation claims or trial results.
 
 ## Purpose
 
@@ -10,14 +12,23 @@ The proposal asks consumers what metadata and access capabilities they actually 
 
 Each plugin evaluation is self-contained and follows the same template, so sections can be added (or pasted in from separate analysis sessions) without restructuring the document.
 
+This shared document is organized by plugin rather than by developer, so producer, bridge, catalogue, and point-query requirements can be compared across contributors.
+
 ## How to add a plugin section
 
 Add a `### <plugin name>` subsection under *Plugin evaluations*, following the template verbatim so sections stay comparable. Keep each section able to stand alone: a reader should not need the other sections to understand one plugin. Then add one row to the fleet matrix in *Fleet-wide observations* and move any new, generally applicable points into *Feedback items*.
+
+Identify the plugin author or maintainer separately from the evaluator, link its repository, and record the plugin revision assessed. Cite source files for implementation claims and distinguish current behaviour from proposed adoption. If a revision or attribution is unknown, say so rather than inferring it. An evaluation is a contributor's assessment, not automatically a maintainer endorsement.
 
 The template:
 
 ```markdown
 ### <plugin name>
+
+**Plugin author / maintainer:** name and handle, with an attribution source where available.
+**Repository:** link to the plugin repository.
+**Evaluation by:** contributor name; note assistance and pending maintainer review where applicable.
+**Plugin version / commit reviewed:** version and immutable source revision, or explicitly not recorded.
 
 **Role:** one sentence on what the plugin does.
 **Weather access today:** how it obtains forecast data (APIs, providers, files), and where that sits on the hot path.
@@ -56,6 +67,11 @@ GRIB datasets become a custom `gribs` resource type in the existing Resources AP
 
 ### signalk-dead-reckoning
 
+**Plugin author / maintainer:** Henri Bergius (@bergie), as declared in [package metadata](https://github.com/meri-imperiumi/signalk-dead-reckoning/blob/main/package.json).
+**Repository:** [meri-imperiumi/signalk-dead-reckoning](https://github.com/meri-imperiumi/signalk-dead-reckoning).
+**Evaluation by:** Henri Bergius (@bergie), original contribution.
+**Plugin version / commit reviewed:** not recorded in the original evaluation.
+
 **Role:** offline-first dead reckoning and sensor fusion engine that maintains a continuously computed "shadow boat" position from water-track sensors, learning vessel-specific leeway and current corrections against GPS ground truth.
 **Weather access today:** Signal K Weather API point queries (`app.weatherApi.getForecasts()`, in-process) for the surface current at the vessel position, polled on a slow interval and cached; never on the 1 Hz hot path.
 **Verdict:** indirect consumer only — the Resources API layer should stay invisible to this plugin.
@@ -90,6 +106,11 @@ Feedback to the discussion:
 - The proposal's routing-centric framing underrepresents **safety-adjacent small consumers** like navigation fallback engines; their needs are modest (point queries plus trust metadata) but their tolerance for stale or misattributed data is far lower than a map layer's.
 
 ### signalk-energy-predictor
+
+**Plugin author / maintainer:** Henri Bergius (@bergie), as declared in [package metadata](https://github.com/meri-imperiumi/signalk-energy-predictor/blob/main/package.json).
+**Repository:** [meri-imperiumi/signalk-energy-predictor](https://github.com/meri-imperiumi/signalk-energy-predictor).
+**Evaluation by:** Henri Bergius (@bergie), original contribution.
+**Plugin version / commit reviewed:** not recorded in the original evaluation.
 
 **Role:** predicts the vessel's energy generation (solar, wind generator, hydrogenerator) and battery trajectory for the next 24–48 h by combining weather forecasts with models learned from the vessel's actual generation history, and publishes actionable advisories (stow a deployable, run the genset or engine, surplus/deficit outlook).
 **Weather access today:** a 4-tier ingestion FSM: tier 1 fetches Open-Meteo hourly point forecasts (shortwave radiation passed through as GHI plus wind speed, direction and gusts; 48 h default, up to 168 h configured), tier 2 queries the server's Weather API in-process via `app.weatherApi.getForecasts()` (Kasten-Czeplak synthesis from `outside.cloudCover`, wind fields when the provider carries them), tier 3 reads observed cloud cover from signalk-logbook through the `logentries` resource API, tier 4 is clear-sky geometry. Refetch runs on a debounced schedule plus uplink-transition events (Starlink online, metered↔unmetered), and points land in an on-disk per-day weather cache tagged by tier with TTL-bounded reuse; tier 1 is suppressed on metered uplinks in favour of the in-process tier 2. Not a 1 Hz hot path, but safety-adjacent: outputs gate deployable stowage and genset/engine run recommendations.
@@ -126,6 +147,11 @@ Feedback to the discussion:
 - **Provenance crossing the bridge** (shared with dead-reckoning) is what would replace the plugin's freshness heuristics with dataset truth and let it gate automation advisories on it.
 
 ### signalk-passage-briefing
+
+**Plugin author / maintainer:** Henri Bergius (@bergie), as declared in [package metadata](https://github.com/meri-imperiumi/signalk-passage-briefing/blob/main/package.json).
+**Repository:** [meri-imperiumi/signalk-passage-briefing](https://github.com/meri-imperiumi/signalk-passage-briefing).
+**Evaluation by:** Henri Bergius (@bergie), original contribution.
+**Plugin version / commit reviewed:** not recorded in the original evaluation.
 
 **Role:** offshore passage daily briefing webapp — simulates the passage hour by hour from the boat's actual position (polar boat speed plus current) along whatever route is currently active, regardless of its source (signalk-weather-router-plus, an Orca or LuckGrib plan, a hand-drawn track), recommends sail changes learned from the electronic logbook, rates every hour on the Sereno comfort scale, and assembles bulletins, official alerts, hazards and sky events into one unified timeline the crew walks through each day underway.
 **Weather access today:** track-weather fetch — waypoints sampled every 30 nm along the active route over a 7-day horizon; `weather_source: auto` prefers the server's Weather API in-process (`app.weatherApi.getForecasts()` per waypoint, served by signalk-weather-router-plus from its decoded ECMWF run) and falls back to Open-Meteo for that window otherwise (three batched multi-location requests: forecast, GFS-wave marine, SMOC currents). The payload is cached to disk (`weather/latest-<route>.json` plus dated snapshots) and must survive the roughly 23 offline hours between uplink windows; fetches are gated on `network.internet.state` (cron at 02/08/14/20 UTC in harbour, online/metered transitions offshore). Runtime dependency budget: three packages, no GRIB decoder.
@@ -168,6 +194,11 @@ Feedback to the discussion:
 
 ### signalk-offshore-blogging
 
+**Plugin author / maintainer:** Henri Bergius (@bergie), as declared in [package metadata](https://github.com/meri-imperiumi/offshore-blogging-system/blob/main/package.json).
+**Repository:** [meri-imperiumi/offshore-blogging-system](https://github.com/meri-imperiumi/offshore-blogging-system) (package `@meri-imperiumi/signalk-offshore-blogging`).
+**Evaluation by:** Henri Bergius (@bergie), original contribution.
+**Plugin version / commit reviewed:** not recorded in the original evaluation.
+
 **Role:** low-bandwidth lifeline plugin plus companion cloud server: encodes blog posts for InReach/Winlink transmission, turns crew weather requests into Saildocs queries, and receives the resulting GRIB files back over the same channels, persisting them on the boat's Signal K server for shared use.
 **Weather access today:** it *acquires* rather than consumes — the vessel's primary weather access is high-bandwidth Starlink (signalk-grib-downloader feeding signalk-grib-weather-provider), and this plugin is the backup acquisition path for when that is unavailable or uneconomic; with Starlink pricing pushing cruisers off the primary path (the plugin SPEC's stated motivation), the backup is progressively becoming a co-primary. Outbound: a crew request or preset becomes a Saildocs email query (`model:lat1,lat2,lon1,lon2|grid|hours|params`); the cloud server stores the query text for reply correlation, and when the reply GRIB arrives it chunks it (compact header, type `G`, ~96 base64 chars per message) for InReach transmission behind a size-consent gate (above 15 chunks ≈ 1 KB the crew must approve the estimated cost with a YES). Inbound: the crew pastes received chunks into the plugin webapp; the server reassembles, validates the `GRIB` magic and edition byte, and persists to `…/gribs/inreach/<id>.grb`, where signalk-grib-weather-provider discovers it by directory convention; the Winlink variant uploads the whole email attachment through a single POST endpoint instead. No decoding anywhere: the plugin's entire GRIB awareness is magic bytes and the edition byte.
 **Verdict:** producer — the out-of-band, file-drop producer the proposal's downloader story (§4.2) does not yet cover; never a weather consumer itself, and the fleet's first producer-side evaluation.
@@ -208,16 +239,148 @@ Feedback to the discussion:
 - **Treat content hashes as the identity floor (§13):** content-derived ids already dedup re-uploads in production; model/run-derived identity is better but needs a decoder — the schema should carry the hash as the always-computable minimum alongside the better key.
 - **Make cost estimation a first-class subset capability (§7/§14):** satellite flows gate transfers on an estimated-size YES; estimated-size reporting belongs in the content capability advertisement next to rate limiting.
 
+### signalk-grib-downloader
+
+**Plugin author / maintainer:** Jean-Laurent Girod (@macjl), as declared in [package metadata](https://github.com/macjl/signalk-grib-downloader/blob/61eca905212e9ae51ee4013e4e0062d4b3575cf2/package.json).
+**Repository:** [macjl/signalk-grib-downloader](https://github.com/macjl/signalk-grib-downloader).
+**Evaluation by:** Codex, source-based evaluation reviewed and approved by Jean-Laurent Girod.
+**Plugin version / commit reviewed:** 0.2.4, [`61eca90`](https://github.com/macjl/signalk-grib-downloader/commit/61eca905212e9ae51ee4013e4e0062d4b3575cf2).
+
+**Role:** obtains forecast runs from upstream services and manages automatic or manual downloads, source configuration, and local retention.
+**Weather access today:** in-process HTTP acquisition for GFS, AROME, ARPEGE, and ICON-EU, writing files under a shared `<root>/<model>-<resolution>` directory convention. The Weather Provider discovers those directories independently; the downloader does not currently register GRIB resources or serve a binary-content catalogue.
+**Verdict:** producer — a candidate for publishing completed datasets through the shared resource contract.
+
+#### Data needs
+
+The producer knows the requested model, resolution, forecast horizon, and run stamp, plus upstream-specific parameters, levels, packages, or groups. GFS supports upstream area subsetting; the other download paths obtain distributed files. These request settings describe intended content and should not be mistaken for a verified inventory of fields and coverage in the resulting GRIBs.
+
+Automatic scheduling pauses when the published internet state is offline or captive and stretches scheduling waits on metered links. Manual downloads remain available. The management webapp already estimates download volume. A run may consist of several files, rather than one binary object.
+
+#### Direct GRIB resource consumption
+
+The downloader would publish resources, rather than use them for weather calculations. Its existing file writes use temporary files and rename; a completion marker records the fetch fingerprint once the run has finished. Older runs are then archived or removed according to configuration. See [download and completion handling](https://github.com/macjl/signalk-grib-downloader/blob/61eca905212e9ae51ee4013e4e0062d4b3575cf2/src/downloader.ts).
+
+Resource publication should define whether each file is a resource or a completed multi-file run is one logical dataset. Publishing a run only after completion would provide a stronger dataset boundary than directory scanning alone.
+
+#### Indirect consumption via the Weather API bridge
+
+Today the bridge is the shared filesystem layout. Resource publication would allow the Weather Provider and other consumers to discover the results without depending on those directory names. The acquisition code and scheduling policy could remain in the downloader, while binary serving and metadata enrichment are handled by the Resource Provider. The publication interface between the two plugins remains to be designed.
+
+#### Metadata and capabilities wanted
+
+- Model, run, requested domain, horizon, and acquisition context, with a distinction between requested and verified content.
+- An explicit representation of multi-file datasets and their completion state.
+- Content identity as well as acquisition settings: the existing [fetch fingerprint](https://github.com/macjl/signalk-grib-downloader/blob/61eca905212e9ae51ee4013e4e0062d4b3575cf2/src/scheduler.ts) detects settings changes, but is not a hash of downloaded bytes.
+- Publication and deletion notifications that keep catalogues synchronized with retention operations.
+- A way to enrich metadata without requiring every downloader to carry a decoder.
+
+#### Risks and caveats
+
+The downloader already performs retention, whereas the proposal envisages an independent lifecycle manager. Adoption needs a clear ownership rule so the catalogue and stored content remain consistent when runs are archived or deleted. Requested capabilities also differ from serving capabilities: being able to ask NOMADS for a GFS subset does not make the local producer a generic subset server.
+
+#### Recommendation and feedback
+
+Adopt producer-side publication incrementally after the resource schema and publication interface stabilize, retaining the filesystem bridge during migration. Prioritize dataset granularity, completion, identity, and retention synchronization before advanced subsetting. This evaluation is based on the [README](https://github.com/macjl/signalk-grib-downloader/blob/61eca905212e9ae51ee4013e4e0062d4b3575cf2/README.md) and source inspection; it does not validate upstream downloads or volume estimates at runtime.
+
+### signalk-grib-weather-provider
+
+**Plugin author / maintainer:** Jean-Laurent Girod (@macjl), as declared in [package metadata](https://github.com/macjl/signalk-grib-weather-provider/blob/5acb4997f91ed27c763a24c83f2cce0a4aa3fcf1/package.json).
+**Repository:** [macjl/signalk-grib-weather-provider](https://github.com/macjl/signalk-grib-weather-provider).
+**Evaluation by:** Codex, source-based evaluation reviewed and approved by Jean-Laurent Girod.
+**Plugin version / commit reviewed:** 0.5.0, [`5acb499`](https://github.com/macjl/signalk-grib-weather-provider/commit/5acb4997f91ed27c763a24c83f2cce0a4aa3fcf1).
+
+**Role:** decodes locally available GRIB files, caches forecast fields, and exposes interpolated point forecasts through the Weather API.
+**Weather access today:** periodically discovers source directories and ingests files with WebAssembly ecCodes into per-validity-time `.gribcache` slices. Each source is registered as an independently selectable Weather Provider. Point queries interpolate from the surrounding grid values; daily forecasts, observations, and warnings return empty arrays.
+**Verdict:** direct GRIB consumer and Weather API bridge — its present ingestion pipeline could consume resource content instead of relying only on private directory discovery.
+
+#### Data needs
+
+The supported ingestion profile described in the [README](https://github.com/macjl/signalk-grib-weather-provider/blob/5acb4997f91ed27c763a24c83f2cce0a4aa3fcf1/README.md) is regular latitude/longitude GRIB2 data with a common grid within each file. Extraction targets 10 m wind, gusts, 2 m temperature, surface/sea-surface temperature, pressure, humidity, precipitation, and total cloud cover. Conversion is bounded in concurrency and cached locally, so subsequent point queries do not require upstream connectivity.
+
+The current [extraction table](https://github.com/macjl/signalk-grib-weather-provider/blob/5acb4997f91ed27c763a24c83f2cce0a4aa3fcf1/src/ingest-wasm.ts) does not extract ocean currents, wave or swell fields, or upper-air convective parameters. Discovering resources carrying those fields would not by itself add support for them.
+
+#### Direct GRIB resource consumption
+
+Yes. Replace or supplement directory discovery with catalogue discovery, suitability checks, and retrieval of resource content into a local ingestion cache. Keep decoding and interpolation in this plugin. A standard GRIB file can still be outside this consumer's supported profile; the catalogue should help reject or explain unsupported inputs before expensive processing where possible.
+
+The [store](https://github.com/macjl/signalk-grib-weather-provider/blob/5acb4997f91ed27c763a24c83f2cce0a4aa3fcf1/src/grib-store.ts) currently chooses the most recent reference time for overlapping validity times. A resource-aware implementation should retain the actual dataset reference used by each returned slice, rather than attaching one assumed run identity to a potentially mixed forecast series.
+
+#### Indirect consumption via the Weather API bridge
+
+This plugin is the bridge on which the indirect consumers depend. Its [Weather API mapper](https://github.com/macjl/signalk-grib-weather-provider/blob/5acb4997f91ed27c763a24c83f2cce0a4aa3fcf1/src/weather-mapper.ts) currently returns dates, types, and supported weather values without structured resource identity or model-run provenance. Resource metadata alone therefore does not reach downstream clients.
+
+Dataset availability, decoder support, and parameters actually exposed through the Weather API are separate capabilities. Provider selection also needs a mapping between registered Weather Providers and resource IDs; selecting a directory-backed source today is not equivalent to selecting one immutable dataset or run.
+
+#### Metadata and capabilities wanted
+
+- Edition, grid representation, levels, verified parameters, run reference time, forecast steps, and coverage for ingestion and selection.
+- Stable content identity to reuse decoded caches and invalidate them when bytes change.
+- Per-slice or per-parameter provenance when a forecast response uses multiple runs or datasets.
+- A clear source-to-resource mapping for clients selecting a dataset through the catalogue but querying values through the Weather API.
+- Offline retrieval policy and explicit lifecycle behaviour for already cached content after resource removal.
+
+#### Risks and caveats
+
+The reviewed version depends on WebAssembly ecCodes and documents Node.js 24 or newer. Resource adoption does not remove decoder, grid, or field limitations. The current mapper can expose generic surface temperature as `water.temperature`; verified parameter semantics matter when consumers interpret that as actual sea-surface temperature. Metadata enrichment and expanded weather extraction should be considered separately, and changes to Weather API provenance need their own contract review.
+
+#### Recommendation and feedback
+
+Prioritize resource-based discovery and local caching while preserving existing point-query clients. Define the bridge's identity, capability, and source-selection contract early. Treat support for currents, waves, swell, or additional grids as explicit implementation work, not an automatic consequence of resource registration. The assessment is source-based; no conversion or forecast-query runtime validation was performed.
+
+### signalk-weather-map
+
+**Plugin author / maintainer:** Jean-Laurent Girod (@macjl), as declared in [package metadata](https://github.com/macjl/signalk-weather-map/blob/d8e40b324446f0a18eb891b1b27b5d422eaa97f2/package.json).
+**Repository:** [macjl/signalk-weather-map](https://github.com/macjl/signalk-weather-map).
+**Evaluation by:** Codex, source-based evaluation reviewed and approved by Jean-Laurent Girod.
+**Plugin version / commit reviewed:** 0.4.0, [`d8e40b3`](https://github.com/macjl/signalk-weather-map/commit/d8e40b324446f0a18eb891b1b27b5d422eaa97f2).
+
+**Role:** browser weather visualisation displaying forecast fields, a time slider, and vessel position on a MapLibre globe.
+**Weather access today:** discovers registered providers through the Weather API, samples point forecasts on a viewport-dependent display grid, and renders weather layers in the browser. It uses memory and localStorage caches with a 30-minute TTL and batches point requests with up to 15 concurrent workers. It does not download or decode GRIB binaries.
+**Verdict:** indirect consumer today; potential catalogue consumer for dataset metadata and selection. Direct binary consumption would be a separate architectural change.
+
+#### Data needs
+
+The displayed layers are wind, gusts, temperature, water temperature, cloud cover, precipitation, and pressure. The client needs geographically distributed point series covering the current viewport and available forecast times; grid density adapts to zoom. Vessel position and heading come from the normal vessel-data API. The current cache helps reuse loaded forecasts, but its TTL and cached viewport coverage do not constitute a complete offline forecast package.
+
+#### Direct GRIB resource consumption
+
+There is no direct consumption in the reviewed version. The [browser client](https://github.com/macjl/signalk-weather-map/blob/d8e40b324446f0a18eb891b1b27b5d422eaa97f2/public/index.html) discovers `/signalk/v2/api/weather/_providers` and queries `/signalk/v2/api/weather/forecasts/point` with a provider ID for each sampled position. It builds the display grid itself, rather than using a provider-specific grid endpoint.
+
+The resource catalogue could add model/run choices, verified coverage, and dataset freshness without requiring browser-side GRIB decoding. Connecting such a choice to Weather API queries requires the bridge's provider-to-resource mapping. If direct binary rendering is later desired, it needs a decoder, field extraction, interpolation, and a distinct cache design; it should remain optional so non-GRIB Weather Providers continue to work.
+
+#### Indirect consumption via the Weather API bridge
+
+The map already benefits from locally decoded GRIBs through the Weather Provider. Changing upstream discovery to resources need not change its existing value-query path. Its provider-information panel currently infers available layers from loaded point responses; it lacks an authoritative dataset-level inventory and provenance reference. Bridge capability metadata would help distinguish unavailable fields, missing coverage, and fields not rendered by the map.
+
+#### Metadata and capabilities wanted
+
+- Dataset and model-run identity for source labels and cache invalidation: the current cache key uses provider and position, not run identity.
+- Geographic and temporal coverage, including explicit behaviour around the antimeridian, for efficient viewport requests and source choice.
+- Per-parameter availability and semantics, separate from which layers the UI can render.
+- A mapping from a chosen catalogue dataset to an appropriate Weather API source.
+- If binary retrieval is added later, browser-usable authenticated content URLs and advertised subset capabilities.
+
+#### Risks and caveats
+
+The reviewed application is hosted by Signal K and uses `window.location.origin` as its server address. It demonstrates a browser consumer, but does not yet implement arbitrary remote-server configuration for a standalone navigation application. Fetching a dataset once could reduce repeated point-query overhead for large views; that is a design opportunity to measure, not a demonstrated performance result. Loading map assets and retaining an offline-ready dataset are also separate concerns.
+
+#### Recommendation and feedback
+
+Keep the existing Weather API path while adding trustworthy catalogue metadata and source mapping as the contract matures. Treat browser-side binary rendering as an optional later experiment. Specify model-run cache validation and provider capabilities before expanding the source picker. Sources: the [README](https://github.com/macjl/signalk-weather-map/blob/d8e40b324446f0a18eb891b1b27b5d422eaa97f2/README.md) and browser code at the recorded revision; no visual or runtime tests were performed for this evaluation.
+
 ## Fleet-wide observations
 
 Accumulates as plugin sections are added. The matrix gives one row per evaluated plugin; keep cells short and link to the section for detail.
 
-| Plugin | Role | Access pattern | Direct `gribs` consumer? | Key want |
-|---|---|---|---|---|
-| signalk-dead-reckoning | DR / sensor fusion | Weather API point queries, slow poll, offline-degrading | No | Provenance through the Weather API bridge |
-| signalk-energy-predictor | Energy generation prediction & run advisories | 4-tier FSM; in-process Weather API point queries; metered-aware, offline-degrading | No | Provenance and per-parameter capability through the Weather API bridge |
-| signalk-passage-briefing | Passage briefing: comfort rating, sail work, unified timeline; tactical re-brief underway, route-source-agnostic | Track series (30 nm waypoints, 7 d) via Weather API with Open-Meteo fallback; cached across the offline day | Metadata yes, values no — catalogue drives best/freshest selection | Per-parameter capability for composition; freshness and identity for best-dataset picks per window |
-| signalk-offshore-blogging | Backup GRIB acquisition (InReach/Winlink ingestion) behind a Starlink-primary vessel | Producer: Saildocs queries out, chunked satellite GRIBs in (~1 KB per consent gate); persists for shared download, no decoding | Producer (out-of-band file-drop); never a consumer | Metadata-optional schema; acquisition request/channel/requester in provenance; content-hash identity floor |
+| Plugin | Plugin author | Role | Access pattern | Direct `gribs` consumer? | Key want |
+|---|---|---|---|---|---|
+| [signalk-dead-reckoning](#signalk-dead-reckoning) | Henri Bergius (@bergie) | DR / sensor fusion | Weather API point queries, slow poll, offline-degrading | No | Provenance through the Weather API bridge |
+| [signalk-energy-predictor](#signalk-energy-predictor) | Henri Bergius (@bergie) | Energy generation prediction & run advisories | 4-tier FSM; in-process Weather API point queries; metered-aware, offline-degrading | No | Provenance and per-parameter capability through the Weather API bridge |
+| [signalk-passage-briefing](#signalk-passage-briefing) | Henri Bergius (@bergie) | Passage briefing: comfort rating, sail work, unified timeline; tactical re-brief underway, route-source-agnostic | Track series (30 nm waypoints, 7 d) via Weather API with Open-Meteo fallback; cached across the offline day | Metadata yes, values no — catalogue drives best/freshest selection | Per-parameter capability for composition; freshness and identity for best-dataset picks per window |
+| [signalk-offshore-blogging](#signalk-offshore-blogging) | Henri Bergius (@bergie) | Backup GRIB acquisition (InReach/Winlink ingestion) behind a Starlink-primary vessel | Producer: Saildocs queries out, chunked satellite GRIBs in (~1 KB per consent gate); persists for shared download, no decoding | Producer (out-of-band file-drop); never a consumer | Metadata-optional schema; acquisition request/channel/requester in provenance; content-hash identity floor |
+| [signalk-grib-downloader](#signalk-grib-downloader) | Jean-Laurent Girod (@macjl) | Scheduled/manual acquisition and local retention | Upstream HTTP to completed local runs; shared directory layout today | Producer; future resource publisher | Multi-file dataset boundaries, completion, and retention synchronization |
+| [signalk-grib-weather-provider](#signalk-grib-weather-provider) | Jean-Laurent Girod (@macjl) | GRIB decoding and Weather API bridge | Local file ingestion to cached, interpolated point forecasts | Direct binary consumer; future resource discovery | Verified capabilities, source/resource mapping, and per-slice provenance |
+| [signalk-weather-map](#signalk-weather-map) | Jean-Laurent Girod (@macjl) | Browser forecast visualisation | Viewport-grid sampling via Weather API; browser cache | Indirect today; catalogue use possible | Run-aware cache invalidation and authoritative layer/coverage metadata |
 
 Shared patterns observed so far:
 
@@ -228,6 +391,10 @@ Shared patterns observed so far:
 - Model-run identity is a bandwidth lever for metered vessels, not just a dedup concern: scarce fetch windows should be spent only when a new run has actually published.
 - Subset size is a function of route geometry, not just area: a boat occupies one small bubble at a time, so time-parameterized (moving) extraction windows beat whole-route bounding boxes on every long passage.
 - The producer's view inverts the consumers' wish list: consumers want richer metadata, but out-of-band producers may be structurally unable to compute it (no decoder on a radio lifeline), so the schema must degrade gracefully or the offline half of the supply chain is locked out — producer-side confirmation of the ingestion gap first raised under passage-briefing.
+- The main HTTP downloader supplies a complementary producer case: a completed model run may span several GRIB files, and request settings are not a verified inventory of the downloaded content.
+- Resource discovery, decoder support, and Weather API field support are independent layers. The reviewed GRIB Weather Provider extracts a limited field set; publishing a current or wave dataset does not automatically make those fields available to indirect consumers.
+- Catalogue-based selection needs an explicit resource-to-Weather-Provider mapping. A source/provider ID is not necessarily an immutable run ID, and the bridge can use different runs at different validity times.
+- A visualisation client may generate many point queries while remaining entirely behind the Weather API. Browser-side GRIB decoding is an optional redesign, not a prerequisite for benefiting from shared resources.
 
 ## Feedback items for the proposal discussion
 
@@ -245,3 +412,8 @@ Accumulating list of concrete points to raise, tagged with the contributing plug
 - Record the acquisition request, channel, and requester in provenance (§12): for a radio-ingested dataset the request text (e.g. a Saildocs query) is the only coverage-and-parameter description the producer holds — the request is the transformation history — and in federated flows the requester identity is provenance the proposal does not yet name. *(signalk-offshore-blogging)*
 - Treat content hashes as the identity floor (§13): content-derived ids already dedup re-uploads in production on a radio-ingestion producer, while model/run-derived identity requires a decoder — the schema should pair the always-computable content hash with the better model/run key where one exists. *(signalk-offshore-blogging)*
 - Make estimated-size reporting a first-class content capability (§7/§14): metered flows gate transfers on consent driven by a size estimate (this fleet's cloud server requires an explicit YES above ~1 KB), so a subset request should be answerable with an estimate before bytes move — a sibling of the spatialSubset/temporalSubset/parameterSubset advertisement. *(signalk-offshore-blogging)*
+- Define dataset granularity and publication completion: a logical run can consist of several files. Decide how the catalogue represents those files and when the dataset is ready for use, rather than exposing a changing directory as if it were immutable content. *(signalk-grib-downloader)*
+- Distinguish requested metadata from verified content, and dataset fields from decoder/bridge capabilities. A producer can report what it asked for; an ingestion service can enrich what it actually found; a Weather Provider must advertise what it can expose. *(signalk-grib-downloader, signalk-grib-weather-provider)*
+- Define the mapping from catalogue resources to Weather API providers and dataset selection. Retain provenance at the slice or parameter level when a response combines runs, so a chosen source name does not imply one immutable dataset. *(signalk-grib-weather-provider, signalk-weather-map)*
+- Specify lifecycle ownership and synchronization during migration: existing downloaders already delete or archive files, while the resource proposal assigns lifecycle management a separate role. Catalogue records, original content, and decoded caches need consistent rules. *(signalk-grib-downloader, signalk-grib-weather-provider)*
+- Give browser clients a model-run/content version for cache validation and trustworthy coverage/capability metadata. The current Weather Map keys cached point forecasts by provider and position and infers layers from responses; resource identity and bridge metadata would allow more precise invalidation and source display. *(signalk-weather-map)*
