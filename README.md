@@ -42,6 +42,8 @@ Later phases explore downloader and Weather Provider integration, spatial/tempor
 
 ## Join the discussion
 
+Join the [Discord discussion in the Signal K Specifications channel](https://discord.com/channels/1170433917761892493/1557058626391384185) to exchange ideas with the community.
+
 Use [GitHub Discussions](https://github.com/macjl/signalk-grib-resources/discussions) for general feedback on the proposal. In particular:
 
 - Does this fit the intended use of Signal K Resource Providers?
