@@ -34,6 +34,7 @@ Useful starting points:
 
 - [Weather API and dataset access](docs/project-outline.md#3-why-the-weather-api-is-not-enough)
 - [Consumer use cases, including weather routing](docs/project-outline.md#41-grib-consumer)
+- [External navigation applications, observations and offline forecasts](docs/project-outline.md#48-external-navigation-application)
 - [Proposed architecture](docs/project-outline.md#5-proposed-architecture)
 - [Original access and delegated temporary processing](docs/project-outline.md#7-subsetting-and-processing-access)
 - [Suggested implementation phases](docs/project-outline.md#15-suggested-implementation-phases)

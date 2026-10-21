@@ -31,6 +31,8 @@ Format knowledge lives in **separate processing plugins**. GRIB and future Zarr 
 
 The catalogue provides shared mechanics: identity, versions, completion state, notifications, access control, original-content serving, and temporary-result lifecycle. Processors supply verified format metadata and perform supported selections or transformations.
 
+The metadata/content separation follows the same general pattern as chart resources: the resource describes a source, while binary content is retrieved through linked endpoints outside the generic `getResource()` JSON response. This lets applications inspect what is available before transferring large content.
+
 The catalogue is an explicit dependency for plugins using this contract. Its simplicity comes from a bounded responsibility, not from having no orchestration work. It routes one operation to one compatible processor; automatic pipelines and fallback chains are outside the initial scope.
 
 The working assumption remains that a prototype can use existing Signal K interfaces without a server-core change. A processor-registration or dataset-job API is **proposed here**, not claimed to be an existing Signal K facility.
@@ -39,7 +41,13 @@ The working assumption remains that a prototype can use existing Signal K interf
 
 The Weather API provides normalised weather-value queries, such as a forecast series for a position. A GRIB-backed Weather Provider can continue bridging dataset access to that interface.
 
+For example, a client asking "What wind and temperature are forecast at this anchorage tomorrow?" can use a Weather Provider such as Open-Meteo, OpenWeather, or a local GRIB-backed provider through the Weather API. It need not download and interpret an entire forecast dataset to answer that point-query use case.
+
+A GRIB dataset, by comparison, contains fields over space, forecast times, vertical levels, and meteorological parameters. A routing engine explores many candidate positions and arrival times, rather than querying only the boat's present position or a few fixed waypoints.
+
 A route calculation may require many spatial and temporal samples. Reading the relevant data once and interpolating locally avoids repeatedly requesting individual points. Dataset consumers also need model/run identity, available fields and levels, grid and encoding compatibility, coverage, provenance, and content access.
+
+A shared dataset contract also separates the choice of acquisition source from the choice of reader. A compatible GRIB reader can consume supported data from different downloaders and forecast models without a private integration for each downloader. It must still check the fields, levels, coverage, grids, and encodings it actually supports.
 
 - **Resources API:** discover and inspect persistent datasets.
 - **Catalogue content and processing endpoints:** retrieve originals, indexes, or requested temporary subsets.
@@ -59,6 +67,20 @@ A simpler consumer can request selected parameters, levels, and forecast times f
 
 These access paths coexist. Original access must not trigger automatic conversion or re-packing.
 
+#### Weather routing example
+
+A coastal routing application could select an AROME forecast for its finer regional wind grid where the actual coverage and forecast horizon meet the passage's needs. For a longer offshore route, it could select a global forecast, or combine regional and global datasets if its engine supports that policy. Waves and currents may come from separate datasets; choosing an atmospheric model does not imply that those fields are present.
+
+The application should be able to:
+
+- discover completed datasets published by independent downloaders or receivers;
+- compare model, run, resolution, freshness, producer, and original/derived status;
+- verify the required fields, levels, geographic coverage, forecast period, and encoding compatibility;
+- retrieve originals or selected indexed messages, or request a supported subset through the catalogue;
+- decode and interpolate locally while evaluating candidate routes.
+
+The routing application remains responsible for deciding whether the selected data are suitable, how to combine sources, and how to compute the route. The shared contract removes downloader-specific integration without prescribing one best model for every application.
+
 ### 4.2 GRIB producer / downloader
 
 **As a downloader, file importer, or satellite/email receiver, I want to publish acquired content without carrying a decoder or depending on successful transformation.**
@@ -66,6 +88,8 @@ These access paths coexist. Original access must not trigger automatic conversio
 The producer supplies original bytes, acquisition context, and an explicit boundary for the content it has finished acquiring. It can publish one received file or a logical run containing several files. Download scheduling and upstream-specific requests remain its responsibility.
 
 A minimal producer may know little beyond format, size, source, and acquisition time. Requested fields/domain must be distinguished from verified content. An indexer can enrich the catalogue later; missing metadata is not evidence that a field is absent.
+
+For example, a scheduled downloader can publish a completed multi-file model run, while an InReach or Winlink receiver publishes one reassembled GRIB with its request text and acquisition channel. Both use the same producer contract. The radio receiver does not have to decode the file or assemble it with other forecasts before the catalogue can retain and expose it.
 
 ### 4.3 GRIB aggregator / transformer
 
@@ -75,11 +99,33 @@ The plugin registers supported inputs, operations, and outputs. It can index con
 
 A plugin can also act as a producer and explicitly publish a derived dataset for persistent reuse, with source versions and transformation provenance. A temporary subset does not automatically become a persistent dataset.
 
+Possible derived-data uses include:
+
+- combining fields from several models where a processor supports the required compatibility and alignment;
+- assembling atmospheric, wave, and ocean fields into a supported output;
+- creating a reduced GRIB for a constrained navigation application;
+- extracting data along a route or corridor;
+- producing an explicitly identified blended forecast;
+- converting or normalising encodings for a particular reader.
+
+These are use cases for optional processors and later work, not operations every installation must support. A producer may publish a completed derived dataset for several consumers, while a one-off subset request remains temporary. Both retain provenance pointing to the source versions.
+
 ### 4.4 Lifecycle and retention management
 
 **As an administrator, I want storage usage controlled without datasets disappearing halfway through a read or processing job.**
 
 The catalogue coordinates retention with active content access. Producers and policy tools request deletion or archival through that ownership contract, rather than removing catalogue-owned files independently. Policies may keep the latest N runs or preserve selected datasets.
+
+Different installations may want to:
+
+- retain only the newest completed run, replacing an older one after successful publication;
+- keep the last N runs locally for comparison;
+- archive older content to slower or compressed storage;
+- preserve selected datasets for a passage, forecast verification, or research;
+- expire derived datasets sooner than their original sources;
+- enforce a storage quota without deleting content in active use.
+
+Archival or compression must preserve content identity or explicitly describe a different stored representation and its restoration requirements. An index for the original bytes must not silently be applied to compressed archive bytes. Advanced archival policies are later work; the initial catalogue still needs clear ownership and deletion coordination.
 
 Temporary jobs and results have a separate, bounded lifetime; they do not consume persistent catalogue entries by default.
 
@@ -89,11 +135,17 @@ Temporary jobs and results have a separate, bounded lifetime; they do not consum
 
 Persistent identity and provenance survive retrieval and mirroring. Historical retention is a policy, not an obligation to preserve every downloaded run indefinitely.
 
+For example, a verification tool may compare yesterday's forecast for a location and valid time with the observation later recorded there. A passage-planning tool may compare successive model runs for the same departure. Both need the original run identity and validity information, rather than an entry that always resolves to whichever forecast is newest.
+
 ### 4.6 Low-bandwidth vessel access
 
 **As a vessel with a limited connection, I want to retrieve only the required area, parameters, and forecast period from a shore server.**
 
 The client discovers actual content and available operations. It can use index + Range or a processor-generated result. Size estimates, where supported, help the user decide before transfer. Unknown size must remain distinguishable from a reliable estimate.
+
+For example, a shore server could retain a regional AROME or ARPEGE forecast while the vessel requests only the Mediterranean area around a planned passage, the next 48 hours, and the supported wind and pressure fields. Wave or current data could be selected from other datasets where available. Reducing transferred fields and times, and the area when a spatial processor is installed, can reduce the transfer compared with retrieving every original asset.
+
+The vessel should inspect available coverage and processing capabilities before requesting that result. If spatial cropping is unavailable, the catalogue must say so rather than imply that field/time selection also crops the grid. A completed result can be acquired by a vessel-side producer and explicitly published in the local catalogue, so several onboard applications reuse one transfer. Later processing failure should not cause the acquisition plugin to download the original source again.
 
 ### 4.7 Server-to-server federation
 
@@ -101,9 +153,43 @@ The client discovers actual content and available operations. It can use index +
 
 A local acquisition plugin acts as a consumer of the remote catalogue and a producer for its local catalogue. Federation, remote authentication, and automated replication follow the first local workflows.
 
+The same pattern can be repeated along a supply chain:
+
+```text
+Upstream weather source
+        ↓ acquisition
+Signal K server ashore
+        ↓ original content or supported subset
+Signal K server on vessel
+        ↓ local discovery and retrieval
+Routing / Weather Provider / Visualisation / External applications
+```
+
+Each server uses the same resource model for what it exposes locally. A mirrored original retains its upstream content identity; a subset records the original versions and the operation that produced it. Acquisition over the limited link remains separate from the subsequent local consumption.
+
 ### 4.8 External navigation application
 
-**As a mobile, desktop, or web application, I want to discover and retrieve datasets through HTTP without direct access to the server filesystem.**
+**As a mobile, desktop, or web navigation application already consuming vessel data from a Signal K server, I want to discover and retrieve forecast datasets from that server so that I can display forecast fields alongside vessel observations and navigation information.**
+
+The application may already receive position, measured wind, depth, or other vessel observations through Signal K. The same server can provide a catalogue of forecast datasets acquired by independent downloaders, received over radio/email, or produced locally. The application can use that common access point without being installed as a server plugin or integrating separately with each acquisition source.
+
+A typical workflow would be to:
+
+1. Connect to the vessel's Signal K server and receive vessel observations through the existing data APIs.
+2. Discover completed datasets through the Resources API, inspect their model/run, resolution, available fields, and spatial/temporal coverage, and choose suitable data.
+3. Retrieve supported originals, use an index and Range when the client supports that access, or ask the catalogue for a subset through an available processor.
+4. Download the resulting content, decode supported forecast fields, and display them alongside the chart, the planned route, and measured vessel conditions.
+5. Optionally keep a local application cache for later offline use, retaining source identity/version, model run, forecast validity, and provenance.
+
+For example, before a coastal passage a tablet application could receive the boat's position and measured wind over the onboard network, select an available regional wind forecast covering the route and departure period, and request only the required fields and times. If the installed processor supports the requested operation and the tablet can read its output profile, the tablet retrieves one GRIB result without assembling the downloader's source files. A client with its own bulk-data reader may instead retrieve the original assets directly. Wave or current forecasts can be selected separately when the application supports them.
+
+The application's own offline cache has a different lifecycle from the server's temporary subset result. Once the download is complete, the server can remove the temporary result while the tablet retains its local copy. That copy remains a forecast from the recorded run: it must not silently be presented as a fresh observation or as valid beyond its coverage period. Later updates can be compared by dataset/content version instead of repeatedly downloading identical bytes.
+
+Losing upstream Internet access is different from losing the connection to the onboard server. Previously acquired datasets remain available over the local network without another upstream download. If the application also loses access to the Signal K server, it can continue displaying forecasts from its own cache, but cannot assume it is still receiving current vessel observations or newer forecasts. It can reconnect, inspect the catalogue, and decide whether to refresh when access returns.
+
+This use case positions Signal K as a common access point for vessel observations and forecast datasets in the mariner's digital hub. They retain their respective APIs: measured data comes through existing vessel-data interfaces, dataset discovery/content through the catalogue, and normalised point forecasts through the Weather API when that is what the application needs.
+
+Each application remains responsible for checking dataset suitability and supported decoding, display, and any local interpolation or source-combination policy. The shared catalogue enables access without requiring every application to implement every format or processor capability.
 
 Original-content and processing interfaces should work for external applications and server plugins. URLs must resolve relative to the server used by the client, including proxied installations. Authentication and browser-origin behaviour need an explicit contract.
 
@@ -166,7 +252,7 @@ GET /signalk/v2/api/resources/forecastDatasets/{id}
 
 Metadata stays compact. Large inventories and message indexes are linked documents, rather than embedded in every catalogue response. The exact summary/detail response contract remains to be specified.
 
-An illustrative completed dataset might look as follows. Names, values, and URLs are examples; asset hashes and other detailed fields are omitted for brevity.
+An illustrative completed dataset might look as follows. Names, values, field identifiers, and URLs are examples, not a final schema or an actual AROME inventory. This example assumes common grid/coverage metadata for the declared content; asset hashes and other detailed fields are omitted for brevity.
 
 ```json
 {
@@ -177,6 +263,26 @@ An illustrative completed dataset might look as follows. Names, values, and URLs
   "state": "complete",
   "model": "AROME",
   "run": "2026-10-21T06:00:00Z",
+  "grid": {
+    "type": "regularLatLon",
+    "resolution": { "latitude": 0.01, "longitude": 0.01 },
+    "longitudeConvention": "-180..180"
+  },
+  "bounds": [-12.0, 37.0, 16.0, 55.0],
+  "forecast": {
+    "from": "2026-10-21T06:00:00Z",
+    "to": "2026-10-23T06:00:00Z"
+  },
+  "fields": [
+    {
+      "parameter": "eastward_wind",
+      "level": { "type": "heightAboveGround", "value": 10, "unit": "m" }
+    },
+    {
+      "parameter": "northward_wind",
+      "level": { "type": "heightAboveGround", "value": 10, "unit": "m" }
+    }
+  ],
   "inventory": {
     "status": "verified",
     "href": "/plugins/forecast-catalogue/datasets/example/versions/v1/index"
@@ -239,6 +345,69 @@ The contract distinguishes message selection from spatial cropping, regridding, 
 
 Capabilities apply to compatible datasets/profiles and available processors, not every dataset indiscriminately. Upstream download-service subsetting does not establish local processing capability.
 
+For example, an installed GRIB processor might enable parameter/level/time selection for a dataset without supporting spatial cropping. An illustrative capability description is:
+
+```json
+{
+  "operations": [
+    {
+      "operation": "subset",
+      "selectors": ["parameter", "level", "time"],
+      "outputFormats": ["grib2"]
+    }
+  ]
+}
+```
+
+The full capability contract must additionally identify accepted input grids/encodings and supported output profiles. This short example does not mean that the processor accepts every GRIB2 asset or that any GRIB2 reader can decode its output.
+
+#### Example: requesting a temporary wind GRIB
+
+A navigation client that needs only 10 m wind over the declared 48-hour period could request an operation at a catalogue endpoint such as:
+
+```text
+POST /plugins/forecast-catalogue/datasets/example/versions/v1/requests
+```
+
+An illustrative request body is:
+
+```json
+{
+  "operation": "subset",
+  "fields": [
+    {
+      "parameter": "eastward_wind",
+      "level": { "type": "heightAboveGround", "value": 10, "unit": "m" }
+    },
+    {
+      "parameter": "northward_wind",
+      "level": { "type": "heightAboveGround", "value": 10, "unit": "m" }
+    }
+  ],
+  "from": "2026-10-21T06:00:00Z",
+  "to": "2026-10-23T06:00:00Z",
+  "output": { "format": "grib2" }
+}
+```
+
+The catalogue delegates to a registered compatible processor, which selects the source messages into a result containing only the requested fields and times. For the initial operation, output retains the selected messages' encoding; the client must support the advertised encoding profile. This request does not ask for geographic cropping or conversion. A later spatial-subset request could add an area only where that capability is advertised.
+
+For a long operation, the catalogue could first return an accepted-job link. Once the job completes, an illustrative status/result description could be:
+
+```json
+{
+  "state": "complete",
+  "result": {
+    "href": "/plugins/forecast-catalogue/results/selection-1/data",
+    "format": "grib2",
+    "temporary": true,
+    "expires": "2026-10-21T13:00:00Z"
+  }
+}
+```
+
+The client downloads that single result and may retain its own offline copy. The server cleans up the temporary result according to the delivery/expiry contract. No persistent forecast resource is created by this request. Endpoint names, field identifiers, job states, and request/result shapes here are illustrative; final choices belong to the prototype contract review.
+
 ### Temporary job and result lifecycle
 
 1. A request identifies immutable source versions. The catalogue prevents deletion while they are in active use by the job.
@@ -258,6 +427,8 @@ Reusable subset caches, automatic processing pipelines, and a shared decoded cac
 ## 8. Working Assumption: No Initial Core Change
 
 The Resource Provider interface accepts custom resource types, and plugins can expose HTTP endpoints. These facilities are the proposed basis for discovery, binary serving, and processor communication.
+
+As with chart resources, the JSON resource can link to content served by a plugin endpoint. Keeping the implementation in plugins allows independent releases and experimentation with the dataset contract while leaving format parsing and binary streaming under plugin control. A future generic binary-content enhancement to Signal K may be useful, but it is not assumed to be a prerequisite for the prototype.
 
 Registration, binary ingestion, temporary results, and dispatch are implemented by the catalogue and companion plugins. The Signal K core does not acquire a dataset scheduler or format registry through this proposal.
 
@@ -293,6 +464,25 @@ These are roles, not a requirement for a package per row. Processors remain inde
 ## 11. Resource Discovery
 
 The catalogue filters and orders resources consistently across producers. Criteria include format, model/run, state, verified parameters/levels, space/time coverage, freshness, and available operations.
+
+For example, a client could ask for completed AROME datasets:
+
+```text
+GET /signalk/v2/api/resources/forecastDatasets?model=AROME&state=complete
+```
+
+It could then narrow the candidates to a passage area and forecast period using a query such as:
+
+```text
+GET /signalk/v2/api/resources/forecastDatasets
+    ?model=AROME
+    &state=complete
+    &bbox=5,42,8,44
+    &from=2026-10-21T06:00:00Z
+    &to=2026-10-23T06:00:00Z
+```
+
+These are illustrative discovery queries, not a promise of an existing Signal K forecast schema. The client still inspects verified fields, detailed coverage, and format compatibility before choosing a version. Parameter/level filters need the same unambiguous field identification as processing requests; a broad label such as `wind` is not a substitute for that contract.
 
 Discovery selects an existing dataset; subsetting selects content from a chosen version. Filtering a catalogue by bounding box must not itself generate or download a dataset.
 
